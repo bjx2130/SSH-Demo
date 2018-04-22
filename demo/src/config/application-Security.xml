@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>	
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:oauth2="http://www.springframework.org/schema/security/oauth2"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+						http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+						http://www.springframework.org/schema/security 
+						http://www.springframework.org/schema/security/spring-security-4.2.xsd
+						http://www.springframework.org/schema/security/oauth2
+						http://www.springframework.org/schema/security/spring-security-oauth2.xsd ">
+
+
+
+	<!--  启用spring security注解 @Secured @PermitAll  等等 ||注意：不能注解到@Controller上
+		  jsr250-annotations 的注解只能放在类方法上才有效果 如：@RolesAllowed-->
+	<global-method-security secured-annotations="enabled"
+							pre-post-annotations="enabled"
+							jsr250-annotations="enabled" 
+							proxy-target-class="true"
+							order="0">
+	</global-method-security>
+	
+	
+	<!-- 配置spring Security 的认证提供者 -->
+	<authentication-manager  alias="authenticationManager" >
+		<authentication-provider ref="customAuthenProvider" />
+	</authentication-manager>
+	
+	<!-- 配置spring Security 登录和退出相关页面 -->
+	<!-- 过滤不被拦截的请求 -->
+	<http pattern="/resource/**" security="none"/>
+	<http auto-config="false"  use-expressions="true" entry-point-ref="authenticationEntryPoint" >
+		<intercept-url pattern="/security/**" access="hasAnyRole('ROLE_USER','ROLE_admin')"/>
+		
+		<!-- 自定义拦截器，扩展登录表单中的参数,使用次拦截器后<form-login>配置的内容将失效,
+			并且auto-config设置为： <http auto-config="false">  
+		-->
+		<custom-filter ref="authenticationFilter"  position="FORM_LOGIN_FILTER" />
+		<csrf disabled="true"></csrf>
+		
+		
+		<!-- 自定义退出地址URL -->
+		<!-- 
+			<form>标签等于使用默认的 UsernamePasswordAuthenticationFilter 拦截器
+            <form-login  login-page="/login.jsp"
+                         default-target-url='/security/welcome'/>
+         -->
+	</http>
+
+
+	<!-- 自定义 UsernamePasswordAuthenticationFilter 请求参数的过滤器 此过滤器必须注入一个AuthenticationManager对象 -->
+	<beans:bean id="authenticationFilter" class="org.springsecurity.custom.filter.CustomUsernamePasswordAuthenticationFilter"
+				p:authenticationManager-ref="authenticationManager"
+				p:authenticationFailureHandler-ref="authenticationFailureHandler"
+				/>
+	<!-- 自定义登录失败的处理方法，可以设置登录失败后的跳转地址，不设置则使用response输出信息  -->
+	<beans:bean id="authenticationFailureHandler" class="org.springsecurity.custom.handler.CustomAuthenticationFailureHandler"/>
+
+	<!-- entry-point-ref 配置自定义登录地址 -->
+	<beans:bean id="authenticationEntryPoint" class="org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint">
+		<beans:constructor-arg value="/login.jsp"/>
+	</beans:bean>
+
+</beans:beans>

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:data-jpa="http://www.springframework.org/schema/data/jpa"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+            http://www.springframework.org/schema/context
+            http://www.springframework.org/schema/context/spring-context-4.3.xsd
+			http://www.springframework.org/schema/util 
+			http://www.springframework.org/schema/util/spring-util-4.3.xsd
+			http://www.springframework.org/schema/tx 
+           http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+			http://www.springframework.org/schema/aop
+			http://www.springframework.org/schema/aop/spring-aop.xsd
+           http://www.springframework.org/schema/data/jpa
+     		http://www.springframework.org/schema/data/jpa/spring-jpa-1.0.xsd ">
+
+	<!-- 启用spring注解 @Required, @Autowired @Component 等等 -->
+	<context:annotation-config />
+
+	<!-- 初始化组建扫描 -->
+	<context:component-scan base-package="com.wrok,org.springsecurity.custom" >
+		<context:exclude-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+
+
+	<!-- 引用的资源文件 -->
+	<context:property-placeholder location="classpath:config/pub-ph.properties"
+								  system-properties-mode="OVERRIDE" />
+	<util:properties id="controller"
+					 location="classpath:config/controller.properties" />
+
+
+
+	<!-- 配置开发模式需要的配置信息 -->
+	<beans profile="DEV-MODEL">
+
+	</beans>
+
+	<!-- 配置JPA模式需要的配置信息 -->
+	<beans profile="JPA-MODEL">
+
+				<!-- 启用spring-data 功能实现-->
+				<data-jpa:repositories base-package="com.wrok.repositories" entity-manager-factory-ref="emf" transaction-manager-ref="transactionManager"  factory-class="org.springdata.custom.BaseRepositoryFactoryBean" />
+
+
+				<!-- jdbc配置  -->
+				<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+					  destroy-method="close" p:driverClassName="${jdbc.driverClassName}"
+					  p:url="${jdbc.url}" p:username="${jdbc.username}" p:password="${jdbc.password}"
+					  p:maxActive="${jdbc.pool-size}" p:minEvictableIdleTimeMillis="600000"
+					  p:timeBetweenEvictionRunsMillis="900000" p:removeAbandoned="true"
+					  p:logAbandoned="true" p:removeAbandonedTimeout="120" p:maxWait="5000" />
+
+				<!-- JPA配置 -->
+				<bean id="emf" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+					<!-- 使用JPA的Hibernate实现 -->
+					<property name="jpaVendorAdapter" ref="jpaVendorAdapter" />
+					<property name="jpaDialect" ref="jpaDialect"/>
+					<property name="dataSource" ref="dataSource" />
+					<property name="packagesToScan" value="com.wrok.bean"/>
+					<property name="validationMode" value="NONE" />
+				</bean>
+
+				<!-- 事务管理器 -->
+				<bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager" />
+
+				<!-- 启用注解的方式管理事务 -->
+				<tx:annotation-driven transaction-manager="transactionManager" />
+
+				<!-- 启用AspectJ方式管理事务=== 此横线以下是Aspect形式事物======================== -->
+				<tx:advice id="txAdvice" transaction-manager="transactionManager">
+					<tx:attributes>
+						<tx:method name="get*" read-only="true"/>
+						<tx:method name="*" />
+					</tx:attributes>
+				</tx:advice>
+
+				<aop:config>
+					<aop:pointcut id="service" expression="execution(* com.wrok.service..*.*(..))"/>
+					<aop:advisor pointcut-ref="service" advice-ref="txAdvice"/>
+				</aop:config>
+				<!-- ==================== 此横线以上是Aspect形式事物======================== -->
+
+
+
+				<!-- ==================== 此横线以下是上面配置中所依赖的beans======================== -->
+				<bean id="jpaVendorAdapter" class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter"
+												  p:showSql="true"
+												  p:generateDdl="true"/>
+				<bean id="jpaDialect" class="org.springframework.orm.jpa.vendor.HibernateJpaDialect" />
+				<!-- ==================== 此横线以上是上面配置中所依赖的beans======================== -->
+
+
+				<!-- ==================== Activiti 工作流框架======================== -->
+				<!--
+					如果启动时异常：NoClassDefFoundError: Could not initialize class org.activiti.engine.impl.juel.TypeConverter
+					说明缺少jar包：joda-time-2.9.6.jar
+				-->
+				<!--
+				<bean id="activitiTransactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+					<property name="dataSource" ref="dataSource" />
+				</bean>
+
+				<bean id="processEngineConfiguration" class="org.activiti.spring.SpringProcessEngineConfiguration">
+					<property name="dataSource" ref="dataSource" />
+					<property name="transactionManager" ref="activitiTransactionManager" />
+					<property name="databaseSchemaUpdate" value="true" />
+					<property name="jobExecutorActivate" value="true" />
+					<property name="enableDatabaseEventLogging" value="true" />
+
+				</bean>
+
+				<bean id="processEngine" class="org.activiti.spring.ProcessEngineFactoryBean" destroy-method="destroy">
+					<property name="processEngineConfiguration" ref="processEngineConfiguration" />
+				</bean>
+
+				<bean id="repositoryService" factory-bean="processEngine" factory-method="getRepositoryService" />
+				<bean id="runtimeService" factory-bean="processEngine" factory-method="getRuntimeService" />
+				<bean id="taskService" factory-bean="processEngine" factory-method="getTaskService" />
+				<bean id="formService" factory-bean="processEngine" factory-method="getFormService" />
+				<bean id="historyService" factory-bean="processEngine" factory-method="getHistoryService" />
+				<bean id="managementService" factory-bean="processEngine" factory-method="getManagementService" />
+				<bean id="identityService" factory-bean="processEngine" factory-method="getIdentityService" />
+				 ==================== Activiti 工作流框架======================== -->
+	</beans>
+
+
+
+
+</beans>

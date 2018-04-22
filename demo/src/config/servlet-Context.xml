@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/mvc
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+
+	<!-- 1.启用spring注解 @Required, @Autowired @Component 等等 -->
+	<context:annotation-config />
+
+	<!-- 2.初始化组建扫描 -->
+	<context:component-scan base-package="com.wrok"
+		use-default-filters="false">
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller" />
+		<context:include-filter type="annotation" expression="org.springframework.web.bind.annotation.ControllerAdvice"/>
+	</context:component-scan>
+
+
+	<!-- 声明一个全局异常处理器  @ExceptionHandler 抛出的异常
+	<bean class="org.springsecurity.custom.exception.GolobFulHandlerExceptionResolver"/>
+-->
+
+	<!-- 3.启用spring MVC 配置消息转换器 -->
+	<mvc:annotation-driven enable-matrix-variables="true" validator="validator" >
+		<mvc:message-converters>
+			<bean
+				class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+				<property name="objectMapper" ref="objectMapper" />
+			</bean>
+			<bean
+				class="org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter">
+				<property name="objectMapper" ref="xmlMapper" />
+			</bean>
+			<bean
+				class="org.springframework.http.converter.BufferedImageHttpMessageConverter" />
+			<bean class="org.springframework.http.converter.StringHttpMessageConverter" />
+		</mvc:message-converters>
+		
+		<!-- Spring-data 对Web支持 -->
+		<mvc:argument-resolvers>
+			<bean id="sortResolver" class="org.springframework.data.web.SortHandlerMethodArgumentResolver" />
+			<bean class="org.springframework.data.web.PageableHandlerMethodArgumentResolver">
+				<constructor-arg ref="sortResolver" />
+			</bean>
+		</mvc:argument-resolvers>
+
+	</mvc:annotation-driven>
+
+
+	<!--  启用Spring-data对Web的支持，还需要在消息转换器中配置 PageableHandlerMethodArgumentResolver -->
+	<bean class="org.springframework.data.web.config.SpringDataWebConfiguration" />
+	<!-- 注册PageableHandlerMethodArgumentResolver  -->
+	<bean class="org.springframework.data.web.config.HateoasAwareSpringDataWebConfiguration" />
+
+
+
+	<!-- 4.视图处理器 -->
+	<!-- ViewResolver 中只有一个方法 resolveViewName ，提供 view name 和 实际 view的映射；View 
+		中两个方法 getContentType 和 render ，解析请求中的参数并把这个请求处理成某一种 View. 说白了，就是ViewResolver 
+		负责怎么去解析， 而View只代表一种 视图层的技术。 -->
+	<bean
+		class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver">
+		<property name="viewResolvers">
+			<!-- 此处list中的视图解析器 必须许实现org.springframework.web.servlet.viewResolvers接口 -->
+			<list>
+				<bean
+					class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+					<property name="prefix" value="/WEB-INF/jsp/" />
+					<property name="suffix" value=".jsp" />
+				</bean>
+			</list>
+		</property>
+		<property name="defaultViews">
+			<!-- 此处list中的视图解析器 必须许实现org.springframework.web.servlet.View接口 -->
+			<list>
+				<bean  class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">
+					<!-- 不显示JSON的键值 -->
+					<property  name="extractValueFromSingleKeyModel" value="true" />
+				</bean>
+			</list>
+		</property>
+	</bean>
+
+
+	<!-- 5. 启用spring对Servlet 3.0上传 -->
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.support.StandardServletMultipartResolver">
+	</bean>
+
+
+	<!-- ==================== 此横线以下是上面配置中所依赖的beans======================== -->
+	<!-- 配置 spring-hibernate验证框架 -->
+	<bean id="validator"
+		class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean">
+		<property name="providerClass" value="org.hibernate.validator.HibernateValidator" />
+		<!-- 这里配置将使用上面国际化配置的messageSource -->
+	</bean>
+	<!-- 转换器MappingJackson2*依赖的类 -->
+	<bean id="objectMapper"
+		class="org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean"
+		p:indentOutput="true" p:simpleDateFormat="yyyy-MM-dd"
+		p:modulesToInstall="com.fasterxml.jackson.module.paramnames.ParameterNamesModule" />
+	<bean id="xmlMapper" parent="objectMapper" p:createXmlMapper="true" />
+
+
+</beans>
