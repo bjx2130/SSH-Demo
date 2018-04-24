@@ -39,6 +39,8 @@ public class Less8UploadController1 {
         if (!file.isEmpty()) {
             byte[] bytes = file.getBytes();
             log.info("上传成功1");
+	    // 将上传的文件保存到服务器文件系统
+            //file.transferTo("文件保存位置File类型"); 	
             return "redirect:uploadSuccess";
         }
         return "redirect:uploadFailure";
